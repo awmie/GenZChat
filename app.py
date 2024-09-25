@@ -29,7 +29,7 @@ def chat_function(user_input):
 
     # Send the conversation history to the model
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="meta-llama",
         messages=session['conversation'],
     )
 
