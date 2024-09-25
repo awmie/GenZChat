@@ -14,6 +14,28 @@
         body {
             background: radial-gradient(circle, rgba(237,242,247,1) 0%, rgba(203,213,225,1) 100%);
         }
+        /* Align the user message to the right */
+        .user-message {
+            align-self: flex-end;
+            background-color: #cfe8ff;
+        }
+        /* Align the bot message to the left */
+        .bot-message {
+            align-self: flex-start;
+            background-color: #e0e0e0;
+        }
+        /* General message styling */
+        .message {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 20px;
+            max-width: 70%;
+        }
+        /* Chatbox flex to align messages */
+        #chat-box {
+            display: flex;
+            flex-direction: column;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -62,13 +84,13 @@
         function appendMessage(role, message) {
             const chatBox = document.getElementById('chat-box');
             const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', 'soft-shadow');
 
-            messageDiv.classList.add('my-2', 'p-2', 'rounded-lg', 'max-w-xs', 'soft-shadow');
             if (role === 'user') {
-                messageDiv.classList.add('bg-blue-100', 'ml-auto', 'text-right');
+                messageDiv.classList.add('user-message');
                 messageDiv.textContent = `You: ${message}`;
             } else {
-                messageDiv.classList.add('bg-gray-200', 'mr-auto', 'text-left');
+                messageDiv.classList.add('bot-message');
                 messageDiv.textContent = `Bot: ${message}`;
             }
 
