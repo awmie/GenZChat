@@ -30,6 +30,7 @@
             margin: 5px 0;
             border-radius: 20px;
             max-width: 70%;
+            word-wrap: break-word;
         }
         /* Chatbox flex to align messages */
         #chat-box {
@@ -53,8 +54,8 @@
     </div>
 
     <script>
-        // Function to send message
-        function sendMessage() {
+        // Add event listener for Send button
+        document.getElementById('send-btn').addEventListener('click', async function() {
             const userInput = document.getElementById('user-input').value;
             if (userInput.trim() === "") return;
 
@@ -64,19 +65,27 @@
             // Clear the input
             document.getElementById('user-input').value = '';
 
-            // Simulating a chat response for demonstration
-            setTimeout(() => {
-                appendMessage('bot', "I'm here to help!");
-            }, 1000);
-        }
+            // Send user input to the server
+            
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: userInput }),
+            });
 
-        // Add event listener for Send button
-        document.getElementById('send-btn').addEventListener('click', sendMessage);
+            const data = await response.json();
+
+            // Append bot response to chat
+            appendMessage('bot', data.response);
+            
+        });
 
         // Add event listener for 'Enter' key press
         document.getElementById('user-input').addEventListener('keydown', function(event) {
             if (event.key === 'Enter') {
-                sendMessage();
+                document.getElementById('send-btn').click();
             }
         });
 
