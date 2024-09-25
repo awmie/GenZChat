@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, session
 from flask_session import Session
 from g4f.client import Client
 from g4f.Provider import MetaAI
-
+import os
+import aiohttp
 # Initialize the GPT client
 client = Client(provider=MetaAI)
 
@@ -23,21 +24,23 @@ def before_request():
         }]
 
 # Function to handle conversation
-def chat_function(user_input):
+async def chat_function(user_input):
     # Append user input to conversation history
     session['conversation'].append({"role": "user", "content": user_input})
 
-    # Send the conversation history to the model
-    response = client.chat.completions.create(
-        model="",
-        messages=session['conversation'],
-    )
+    async with aiohttp.ClientSession() as session:
+        try:
+            response = client.chat.completions.create(
+                model="meta-ai-model-id",  # Ensure model is correct
+                messages=session['conversation'],
+            )
+            bot_response = response.choices[0].message.content
+            session['conversation'].append({"role": "bot", "content": bot_response})
 
-    # Get bot response and store it in the conversation history
-    bot_response = response.choices[0].message.content
-    session['conversation'].append({"role": "bot", "content": bot_response})  # Store bot response
-
-    return bot_response
+            return bot_response
+        except Exception as e:
+            print(f"Error during GPT request: {e}")
+            return "Sorry, something went wrong!"
 
 @app.route("/")
 def home():
@@ -53,4 +56,5 @@ def chat():
     return {"response": bot_response}
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+
