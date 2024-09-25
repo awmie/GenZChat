@@ -1,9 +1,7 @@
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, session
 from flask_session import Session
 from g4f.client import Client
 from g4f.Provider import MetaAI
-import os
-import aiohttp
 
 # Initialize the GPT client
 client = Client(provider=MetaAI)
@@ -25,36 +23,34 @@ def before_request():
         }]
 
 # Function to handle conversation
-async def chat_function(user_input):
+def chat_function(user_input):
     # Append user input to conversation history
     session['conversation'].append({"role": "user", "content": user_input})
 
-    async with aiohttp.ClientSession() as session:
-        try:
-            response = await client.chat.completions.create(
-                model="meta-ai-model-id",  # Ensure model is correct
-                messages=session['conversation'],
-            )
-            bot_response = response.choices[0].message.content
-            session['conversation'].append({"role": "bot", "content": bot_response})
+    # Send the conversation history to the model
+    response = client.chat.completions.create(
+        model="",
+        messages=session['conversation'],
+    )
 
-            return bot_response
-        except Exception as e:
-            print(f"Error during GPT request: {e}")
-            return "Sorry, something went wrong!"
+    # Get bot response and store it in the conversation history
+    bot_response = response.choices[0].message.content
+    session['conversation'].append({"role": "bot", "content": bot_response})  # Store bot response
+
+    return bot_response
 
 @app.route("/")
 def home():
     return render_template("index.html")
 
 @app.route("/chat", methods=["POST"])
-async def chat():  # Make this function async
+def chat():
     user_input = request.json.get("message")  # Get the message from the JSON body
 
     # Get bot response
-    bot_response = await chat_function(user_input)  # Await the coroutine
+    bot_response = chat_function(user_input)
 
-    return jsonify({"response": bot_response})  # Use jsonify for proper JSON response
+    return {"response": bot_response}
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(debug=False)
