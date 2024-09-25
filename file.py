@@ -31,7 +31,7 @@ async def chat_function(user_input):
 
     async with aiohttp.ClientSession() as session:
         try:
-            response = await client.chat.completions.create(  # Ensure to await this
+            response = await client.chat.completions.create(
                 model="meta-ai-model-id",  # Ensure model is correct
                 messages=session['conversation'],
             )
@@ -57,4 +57,4 @@ async def chat():  # Make this function async
     return jsonify({"response": bot_response})  # Use jsonify for proper JSON response
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000), debug=True) ) # Added debug=True for development mode
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
