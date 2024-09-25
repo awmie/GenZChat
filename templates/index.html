@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
     <title>Chat with Bot</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
@@ -16,10 +17,40 @@
             <div class="flex">
                 <input id="user-input" class="w-full px-3 py-2 border rounded focus:outline-none" type="text" placeholder="Type your message...">
                 <button id="send-btn" class="ml-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Send</button>
+=======
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> <!-- Font Awesome -->
+    <title>Chatbot</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/style.css"> <!-- Link to external CSS -->
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-black dark:text-white transition-all">
+    <div class="flex items-center justify-center h-screen">
+        <div class="w-full max-w-lg bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden transition-all">
+            <div class="p-4 border-b border-gray-300 dark:border-gray-700 flex justify-between items-center">
+                <h1 class="text-xl font-bold text-center">Chatbot</h1>
+                <!-- Dark mode toggle button -->
+                <button id="dark-mode-toggle" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-black dark:text-white p-2 rounded">
+                    Dark Mode
+                </button>
+            </div>
+            <div id="chat-box" class="h-80 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900 transition-all">
+                <!-- Chat messages will be displayed here -->
+            </div>
+            <div class="p-4 border-t border-gray-300 dark:border-gray-700 relative">
+                <form id="chat-form" class="flex">
+                    <input type="text" id="message" autocomplete="off" placeholder="Type your message..." class="flex-1 p-3 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-700 text-black dark:text-white rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-600" required>
+                    <button type="button" id="emoji-btn" class="flex items-center justify-center w-12 h-12 bg-yellow-500 dark:bg-yellow-600 text-white rounded-full hover:bg-yellow-600 ml-2"> 😂 </button>
+                    <button type="submit" class="flex items-center justify-center w-12 h-12 bg-blue-500 dark:bg-blue-600 text-white rounded-full hover:bg-blue-600 ml-2">
+                        <i class="fa-solid fa-arrow-up"></i>
+                    </button>
+                </form>
+                <div id="emoji-picker" style="display: none; position: absolute; bottom: 100%; left: 0; z-index: 10;"></div> <!-- Hidden emoji picker -->
+>>>>>>> 5c58187b51e222983c235bcfe9391e97889d3871
             </div>
         </div>
     </div>
 
+<<<<<<< HEAD
     <script>
         document.getElementById('send-btn').addEventListener('click', async function() {
             const userInput = document.getElementById('user-input').value;
@@ -63,5 +94,9 @@
             chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to the latest message
         }
     </script>
+=======
+    <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script> <!-- Emoji Mart -->
+    <script src="/static/js/script.js"></script> <!-- Your existing JS file -->
+>>>>>>> 5c58187b51e222983c235bcfe9391e97889d3871
 </body>
 </html>
