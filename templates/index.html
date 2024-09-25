@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div class="bg-white shadow-lg rounded-lg max-w-md mx-auto p-6">
+            <h1 class="text-2xl font-semibold text-center mb-4">Chat with Bot</h1>
+            <div id="chat-box" class="h-96 overflow-y-auto p-4 border rounded bg-gray-50 mb-4">
+                <!-- Chat messages will appear here -->
+            </div>
+            <div class="flex">
+                <input id="user-input" class="w-full px-3 py-2 border rounded focus:outline-none" type="text" placeholder="Type your message...">
+                <button id="send-btn" class="ml-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('send-btn').addEventListener('click', async function() {
+            const userInput = document.getElementById('user-input').value;
+            if (userInput.trim() === "") return;
+
+            // Append user message to chat
+            appendMessage('user', userInput);
+
+            // Clear the input
+            document.getElementById('user-input').value = '';
+
+            // Send user input to the server
+            const response = await fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: userInput }),
+            });
+
+            const data = await response.json();
+
+            // Append bot response to chat
+            appendMessage('bot', data.response);
+        });
+
+        function appendMessage(role, message) {
+            const chatBox = document.getElementById('chat-box');
+            const messageDiv = document.createElement('div');
+
+            messageDiv.classList.add('my-2', 'p-2', 'rounded', 'max-w-xs');
+            if (role === 'user') {
+                messageDiv.classList.add('bg-blue-100', 'self-end');
+                messageDiv.textContent = `You: ${message}`;
+            } else {
+                messageDiv.classList.add('bg-gray-200');
+                messageDiv.textContent = `Bot: ${message}`;
+            }
+
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to the latest message
+        }
+    </script>
+</body>
+</html>
