@@ -5,14 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat with Bot</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* Additional soft shadow styling */
         .soft-shadow {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        /* Smooth background */
-        body {
-            background: radial-gradient(circle, rgba(237,242,247,1) 0%, rgba(203,213,225,1) 100%);
         }
         /* Align the user message to the right */
         .user-message {
@@ -37,23 +34,65 @@
             display: flex;
             flex-direction: column;
         }
+        /* Button styling */
+        .small-button {
+            padding: 0.5rem;
+            font-size: 0.875rem; /* Smaller font size */
+        }
+        /* Enlarged dark mode button */
+        .dark-mode-button {
+            padding: 0.5rem 1rem; /* Increased horizontal padding */
+            font-size: 1rem; /* Slightly larger font size */
+        }
     </style>
 </head>
-<body class="bg-gray-100">
-    <div class="container mx-auto p-4">
-        <div class="bg-white soft-shadow rounded-lg max-w-md mx-auto p-6">
-            <h1 class="text-2xl font-semibold text-center mb-4">Chat with Bot</h1>
-            <div id="chat-box" class="h-96 overflow-y-auto p-4 border border-gray-300 rounded-lg bg-gray-50 mb-4 soft-shadow">
+<body class="bg-gray-100 h-screen flex items-center justify-center">
+    <div class="container mx-auto p-4 max-w-2xl"> <!-- Increased max-width for larger chatbox -->
+        <div id="chat-container" class="bg-white soft-shadow rounded-lg p-6 h-3/4"> <!-- Adjust height for more space -->
+            <div class="flex justify-between items-center mb-4">
+                <h1 id="chat-title" class="text-xl font-semibold">Chat with Bot</h1>
+                <!-- Button for toggling dark mode with Font Awesome icon -->
+                <button id="toggle-dark-mode" class="dark-mode-button bg-gray-700 text-white rounded-lg">
+                    <i id="dark-mode-icon" class="fas fa-moon"></i>
+                </button>
+            </div>
+
+            <div id="chat-box" class="flex-grow h-96 overflow-y-auto p-4 border border-gray-300 rounded-lg bg-gray-50 mb-4 soft-shadow">
                 <!-- Chat messages will appear here -->
             </div>
-            <div class="flex">
-                <input id="user-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none soft-shadow" type="text" placeholder="Type your message...">
-                <button id="send-btn" class="ml-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 soft-shadow">Send</button>
+            <div class="flex items-center space-x-2 mb-4">
+                <input id="user-input" class="flex-grow px-3 py-2 border border-gray-300 rounded-lg focus:outline-none soft-shadow" type="text" placeholder="Type your message...">
+                <button id="send-btn" class="ml-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 soft-shadow">Send</button>
             </div>
         </div>
     </div>
 
     <script>
+        let isDarkMode = false; // Dark mode toggle
+
+        // Add event listener for dark mode toggle button
+        document.getElementById('toggle-dark-mode').addEventListener('click', function() {
+            isDarkMode = !isDarkMode; // Toggle dark mode
+
+            if (isDarkMode) {
+                document.body.style.backgroundColor = '#1f2937'; // Dark background
+                document.querySelector('#chat-container').style.backgroundColor = '#374151'; // Dark chat box background
+                document.querySelector('#chat-box').style.backgroundColor = '#4b5563'; // Darker chat box
+                document.querySelector('#send-btn').classList.replace('bg-blue-500', 'bg-blue-700'); // Darker button
+                document.querySelector('#send-btn').classList.replace('hover:bg-blue-600', 'hover:bg-blue-800');
+                document.getElementById('dark-mode-icon').classList.replace('fa-moon', 'fa-sun'); // Change icon to sun
+                document.getElementById('chat-title').classList.add('text-white'); // Change title to white
+            } else {
+                document.body.style.backgroundColor = ''; // Reset to default background
+                document.querySelector('#chat-container').style.backgroundColor = '#ffffff'; // Light background
+                document.querySelector('#chat-box').style.backgroundColor = '#f3f4f6'; // Light chat box
+                document.querySelector('#send-btn').classList.replace('bg-blue-700', 'bg-blue-500'); // Reset button color
+                document.querySelector('#send-btn').classList.replace('hover:bg-blue-800', 'hover:bg-blue-600');
+                document.getElementById('dark-mode-icon').classList.replace('fa-sun', 'fa-moon'); // Change icon to moon
+                document.getElementById('chat-title').classList.remove('text-white'); // Change title back to default color
+            }
+        });
+
         // Add event listener for Send button
         document.getElementById('send-btn').addEventListener('click', async function() {
             const userInput = document.getElementById('user-input').value;
@@ -66,7 +105,6 @@
             document.getElementById('user-input').value = '';
 
             // Send user input to the server
-            
             const response = await fetch('/chat', {
                 method: 'POST',
                 headers: {
@@ -79,7 +117,6 @@
 
             // Append bot response to chat
             appendMessage('bot', data.response);
-            
         });
 
         // Add event listener for 'Enter' key press
