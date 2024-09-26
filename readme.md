@@ -19,7 +19,7 @@ This is a simple chatbot application that allows users to interact with a bot in
 ## Installation
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/awmie/GenZChat.git
    ```
 2. **Navigate to the project directory**:
    ```bash
