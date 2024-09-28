@@ -28,7 +28,7 @@ def chat_function(user_input):
 
     # Send the conversation history to the model
     response = client.chat.completions.create(
-        model="meta-llama",
+        model="llama-3.2-90b-vision-preview",
         messages=session['conversation'],
     )
 
