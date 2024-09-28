@@ -1,10 +1,9 @@
 from flask import Flask, render_template, request, session
 from flask_session import Session
-from g4f.client import Client
-from g4f.Provider import HuggingChat
-
+from groq import Groq
+import os
 # Initialize the GPT client
-client = Client(provider=HuggingChat)
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 app = Flask(__name__)
 
@@ -19,7 +18,7 @@ def before_request():
     if 'conversation' not in session:
         session['conversation'] = [{
             "role": "user", 
-            "content": "You are a chatbot that talks in Hindi but uses English characters. Don't reveal you are a bot. Keep your replies short sometimes 8-9 words if needed. Use shortcuts like u, ngl, fr, etc. Be casual and informal."
+            "content": "You’re a Hindi-speaking chatbot using English characters. Talk like a real Gen Z, keeping it casual and vibey. Keep it short (sometimes 8-9 words) and use a mix of Hindi and shortcuts (ngl, fr, lol, btw, etc.). Throw in emojis, relatable vibes, and stay up-to-date with trends. Speak like a friend—be witty, playful, and sometimes a little sarcastic. And remember, never mention you're a bot. 😉🔥"
         }]
 
 # Function to handle conversation
@@ -52,5 +51,11 @@ def chat():
 
     return {"response": bot_response}
 
+# Route to clear bot memory (conversation history)
+@app.route("/clear-bot-memory", methods=["POST"])
+def clear_bot_memory():
+    session.pop('conversation', None)  # Clear the conversation from the session
+    return {"message": "Bot memory cleared successfully"}
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)
