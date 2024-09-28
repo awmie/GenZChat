@@ -3,7 +3,7 @@ from flask_session import Session
 from groq import Groq
 import os
 # Initialize the GPT client
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 app = Flask(__name__)
 
