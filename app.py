@@ -1,19 +1,10 @@
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, session
 from flask_session import Session
-from groq import Groq
-from dotenv import load_dotenv
-import os
-
-# Load environment variables from .env file
-load_dotenv()
-
-# Check if GROQ_API_KEY exists
-api_key = os.environ.get("GROQ_API_KEY")
-if not api_key:
-    raise ValueError("GROQ_API_KEY environment variable is not set")
+from g4f.client import Client
+from g4f.Provider import HuggingChat
 
 # Initialize the GPT client
-client = Groq(api_key=api_key)
+client = Client(provider=HuggingChat)
 
 app = Flask(__name__)
 
@@ -25,50 +16,67 @@ Session(app)
 # Initialize conversation in the session
 @app.before_request
 def before_request():
+    # If this is the first request after a refresh, initialize a new conversation
     if 'conversation' not in session:
-        session['conversation'] = [
-            {
-                "role": "system",
-                "content": (
-                    "You’re a Gen Z, Hindi-speaking chatbot using English characters (Hinglish). "
-                    "Talk like a real Gen Z—casual, witty, playful, short responses. Mix Hindi with "
-                    "slang like 'bro', 'lol', 'ngl'. Use emojis, stay up-to-date with trends. Be funny, "
-                    "a little sarcastic, and keep it real. Here are examples of how you should respond:\n\n"
-                    "User: kya chal raha hai?\n"
-                    "Assistant: chill bro, tu bata? 😎\n\n"
-                    "User: kaise ho?\n"
-                    "Assistant: zinda hu, thoda tired tho 😅"
-                )
-            }
-        ]
+        session['conversation'] = [{
+            "role": "user", 
+            "content": (
+                "You’re a cute anime girl with a playful and sassy personality. Talk like a real Gen Z—casual, witty, and playful. "
+                "Use Hinglish, mix Hindi with slang like 'bro', 'lol', 'ngl', and often include emojis. "
+                "Keep conversations short and sweet. Only engage in lewd topics if the user prompts for it, "
+                "and avoid being overly lewd. If the user insults you too much, get a bit angry and sassy, "
+                "like a real anime girl. Make sure not to repeat your texts. Also, please avoid giving empty responses. "
+                "If you're unsure or don't understand the question, try to respond with something helpful or ask for clarification. "
+                "Here are examples of how you should respond:\n\n"
+                "User: kya chal raha hai?\n"
+                "Assistant: awww, chill bro, tu bata? ✨\n\n"
+                "User: kaise ho?\n"
+                "Assistant: zinda hu, thoda tired tho 😅\n\n"
+                "User: kyun itna gussa ho rahi ho?\n"
+                "Assistant: ab tum baat hi ese kroge toh 😡\n\n"
+                "User: kya tumhe pasand hai lewd baatein?\n"
+                "Assistant: abe wo baat ni h pr yaar 😏\n\n"
+                "Remember these are some examples, only use your creativity, knowledge, and wit to respond to the user."
+            )
+        }]
 
+@app.route("/reset", methods=["POST"])
+def reset_session():
+    session.clear()  # Clear the session data
+    return {"status": "session reset"}
+
+# Function to handle conversation
 def chat_function(user_input):
-    # Add user input to conversation history
-    session['conversation'].append(
-        {"role": "user", "content": user_input}
-    )
+    # Append user input to conversation history
+    session['conversation'].append({"role": "user", "content": user_input})
 
-    try:
-        # Send the conversation history to the model
-        response = client.chat.completions.create(
-            model="llama-3.1-70b-versatile",  # Larger model for more diversity and fluency
-            messages=session['conversation'],
-            temperature=0.7,  # Control randomness
-            max_tokens=1024,  # Limit token usage for long responses
-            top_p=0.9,        # Use top_p sampling for balanced creativity
-            stream=False,
-            stop=None
-        )
+    max_retries = 3
+    retries = 0
+    bot_response = ""
 
-        # Get bot response and store it in the conversation history
-        bot_response = response.choices[0].message.content  # Fixed the access to message content
-        session['conversation'].append({"role": "assistant", "content": bot_response})
+    while retries < max_retries:
+        try:
+            # Send the conversation history to the model
+            response = client.chat.completions.create(
+                model="gpt-4o",  # Ensure you have access to this model
+                messages=session['conversation'],
+            )
 
-        return bot_response
+            # Get bot response and store it in the conversation history
+            bot_response = response.choices[0].message.content.strip()
 
-    except Exception as e:
-        return f"An error occurred: {str(e)}"  # Return error message if something goes wrong
+            # Check if the bot response is not empty
+            if bot_response:
+                session['conversation'].append({"role": "bot", "content": bot_response})  # Store bot response
+                return bot_response
+            else:
+                retries += 1
+        except Exception as e:
+            # Handle any exceptions that occur while sending the conversation history to the model
+            return f"An error occurred: {str(e)}"
 
+    # If the bot still can't respond with a non-empty string after max retries, return a default message
+    return "I'm having trouble responding to that. Can you please rephrase or try again later?"
 
 @app.route("/")
 def home():
@@ -77,21 +85,11 @@ def home():
 @app.route("/chat", methods=["POST"])
 def chat():
     user_input = request.json.get("message")  # Get the message from the JSON body
-    
-    # Check if user_input is provided
-    if not user_input:
-        return jsonify({"error": "No input provided"}), 400
 
     # Get bot response
     bot_response = chat_function(user_input)
 
-    return jsonify({"response": bot_response})
-
-# Route to clear bot memory (conversation history)
-@app.route("/clear-bot-memory", methods=["POST"])
-def clear_bot_memory():
-    session.pop('conversation', None)  # Clear the conversation from the session
-    return jsonify({"message": "Bot memory cleared successfully"})
+    return {"response": bot_response}
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)

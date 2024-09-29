@@ -4,145 +4,238 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat with Bot</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Additional soft shadow styling */
-        .soft-shadow {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        /* Align the user message to the right */
-        .user-message {
-            align-self: flex-end;
-            background-color: #cfe8ff;
-        }
-        /* Align the bot message to the left */
-        .bot-message {
-            align-self: flex-start;
-            background-color: #e0e0e0;
-        }
-        /* General message styling */
-        .message {
-            padding: 10px;
-            margin: 5px 0;
-            border-radius: 20px;
-            max-width: 70%;
-            word-wrap: break-word;
-        }
-        /* Chatbox flex to align messages */
-        #chat-box {
+        body {
+            font-family: Arial, sans-serif;
+            color: #fff;
+            background-color: #1a1a1a;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
         }
-        /* Button styling */
-        .small-button {
-            padding: 0.5rem;
-            font-size: 0.875rem; /* Smaller font size */
+
+        #chat-box {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            padding: 20px;
+            background-color: #2a2a2a;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            flex-grow: 1;
         }
-        /* Enlarged dark mode button */
-        .dark-mode-button {
-            padding: 0.5rem 1rem; /* Increased horizontal padding */
-            font-size: 1rem; /* Slightly larger font size */
+
+        .message {
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: 20px;
+            max-width: 75%;
+            word-wrap: break-word;
+            position: relative; /* For pseudo-element positioning */
+            transition: all 0.2s ease; /* Smooth transition */
+        }
+
+        .user-message {
+            background: linear-gradient(145deg, #007AFF, #0056b3); /* iMessage blue */
+            align-self: flex-end;
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.1), -4px -4px 8px rgba(255, 255, 255, 0.05); /* Reduced shadow */
+        }
+
+        .user-message:hover {
+            transform: scale(1.01); /* Slightly enlarge on hover */
+        }
+
+        .bot-message {
+            background: linear-gradient(145deg, #444444, #333333);
+            align-self: flex-start;
+            box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.1), -4px -4px 8px rgba(255, 255, 255, 0.05); /* Reduced shadow */
+            position: relative; /* For positioning the avatar */
+            padding-left: 40px; /* Space for the avatar */
+        }
+
+        .bot-message:hover {
+            transform: scale(1.01); /* Slightly enlarge on hover */
+        }
+
+        .bot-avatar {
+            position: absolute; /* Position the avatar outside the bubble */
+            left: -15px; /* Adjusted position to shift avatar right */
+            top: 50%; /* Center vertically */
+            transform: translateY(-50%); /* Center adjustment */
+            width: 40px; /* Avatar size */
+            height: 40px; /* Avatar size */
+            border-radius: 50%; /* Circular shape */
+            background-color: #555; /* Default background color */
+            overflow: hidden; /* Ensure it clips the image */
+            border: 2px solid #2a2a2a; /* Optional: border to separate from background */
+        }
+
+        .bot-avatar img {
+            width: 100%; /* Cover the whole avatar area */
+            height: auto; /* Maintain aspect ratio */
+        }
+
+        .input-section {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #2a2a2a;
+            border-top: 1px solid #444;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 30px;
+            outline: none;
+            font-size: 16px;
+            margin-right: 10px;
+            background-color: #444;
+            color: #fff;
+            transition: background-color 0.3s ease;
+        }
+
+        #user-input:focus {
+            background-color: #555; /* Darken input on focus */
+        }
+
+        #send-btn {
+            padding: 12px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background-color: #333;
+        }
+
+        #send-btn:hover {
+            background-color: #444;
+        }
+
+        .footer-section {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #2a2a2a;
+            border-top: 1px solid #444;
+            justify-content: space-between;
+            height: 50px;
+        }
+
+        .footer-icons {
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            margin-left: 10px;
+            color: #fff;
+        }
+
+        .footer-icons i {
+            margin-right: 10px;
         }
     </style>
 </head>
-<body class="bg-gray-100 h-screen flex items-center justify-center">
-    <div class="container mx-auto p-4 max-w-2xl"> <!-- Increased max-width for larger chatbox -->
-        <div id="chat-container" class="bg-white soft-shadow rounded-lg p-6 h-3/4"> <!-- Adjust height for more space -->
-            <div class="flex justify-between items-center mb-4">
-                <h1 id="chat-title" class="text-xl font-semibold">Chat with Bot</h1>
-                <!-- Button for toggling dark mode with Font Awesome icon -->
-                <button id="toggle-dark-mode" class="dark-mode-button bg-gray-700 text-white rounded-lg">
-                    <i id="dark-mode-icon" class="fas fa-moon"></i>
-                </button>
-            </div>
+<body>
 
-            <div id="chat-box" class="flex-grow h-96 overflow-y-auto p-4 border border-gray-300 rounded-lg bg-gray-50 mb-4 soft-shadow">
-                <!-- Chat messages will appear here -->
-            </div>
-            <div class="flex items-center space-x-2 mb-4">
-                <input id="user-input" class="flex-grow px-3 py-2 border border-gray-300 rounded-lg focus:outline-none soft-shadow" type="text" placeholder="Type your message...">
-                <button id="send-btn" class="ml-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 soft-shadow">Send</button>
-            </div>
+    <div id="chat-box">
+        <!-- Chat messages go here -->
+    </div>
+    <div class="input-section">
+        <input id="user-input" type="text" placeholder="Type your message...">
+        <button id="send-btn">
+            <i class="fas fa-arrow-up" style="color: #fff;"></i>
+        </button>
+    </div>
+    <div class="footer-section">
+        <div class="footer-icons">
+            <a href="https://github.com/awmie/GenZChat.git" target="_blank" rel="noopener noreferrer">
+                <i class="fab fa-github" title="GitHub" style="color: #fff;"></i>
+            </a>     
         </div>
+        <button id="refresh-btn" class="footer-right" style="font-size: 14px; background-color: transparent; color: #ff4d4d; border: none; cursor: pointer;">
+            Clear Memory
+        </button>                    
     </div>
 
     <script>
-        let isDarkMode = false; // Dark mode toggle
-
-        // Add event listener for dark mode toggle button
-        document.getElementById('toggle-dark-mode').addEventListener('click', function() {
-            isDarkMode = !isDarkMode; // Toggle dark mode
-
-            if (isDarkMode) {
-                document.body.style.backgroundColor = '#1f2937'; // Dark background
-                document.querySelector('#chat-container').style.backgroundColor = '#374151'; // Dark chat box background
-                document.querySelector('#chat-box').style.backgroundColor = '#4b5563'; // Darker chat box
-                document.querySelector('#send-btn').classList.replace('bg-blue-500', 'bg-blue-700'); // Darker button
-                document.querySelector('#send-btn').classList.replace('hover:bg-blue-600', 'hover:bg-blue-800');
-                document.getElementById('dark-mode-icon').classList.replace('fa-moon', 'fa-sun'); // Change icon to sun
-                document.getElementById('chat-title').classList.add('text-white'); // Change title to white
-            } else {
-                document.body.style.backgroundColor = ''; // Reset to default background
-                document.querySelector('#chat-container').style.backgroundColor = '#ffffff'; // Light background
-                document.querySelector('#chat-box').style.backgroundColor = '#f3f4f6'; // Light chat box
-                document.querySelector('#send-btn').classList.replace('bg-blue-700', 'bg-blue-500'); // Reset button color
-                document.querySelector('#send-btn').classList.replace('hover:bg-blue-800', 'hover:bg-blue-600');
-                document.getElementById('dark-mode-icon').classList.replace('fa-sun', 'fa-moon'); // Change icon to moon
-                document.getElementById('chat-title').classList.remove('text-white'); // Change title back to default color
-            }
-        });
-
-        // Add event listener for Send button
-        document.getElementById('send-btn').addEventListener('click', async function() {
-            const userInput = document.getElementById('user-input').value;
-            if (userInput.trim() === "") return;
-
-            // Append user message to chat
-            appendMessage('user', userInput);
-
-            // Clear the input
-            document.getElementById('user-input').value = '';
-
-            // Send user input to the server
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ message: userInput }),
-            });
-
-            const data = await response.json();
-
-            // Append bot response to chat
-            appendMessage('bot', data.response);
-        });
-
-        // Add event listener for 'Enter' key press
         document.getElementById('user-input').addEventListener('keydown', function(event) {
             if (event.key === 'Enter') {
-                document.getElementById('send-btn').click();
+                sendMessage();
             }
         });
 
-        // Append messages to the chatbox
+        document.getElementById('send-btn').addEventListener('click', sendMessage);
+
+        function sendMessage() {
+            const userInput = document.getElementById('user-input').value.trim();
+            if (userInput === '') return;
+
+            appendMessage('user', userInput);
+
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: userInput })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error(data.error);
+                } else {
+                    appendMessage('bot', data.response);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+
+            document.getElementById('user-input').value = '';
+        }
+
         function appendMessage(role, message) {
             const chatBox = document.getElementById('chat-box');
             const messageDiv = document.createElement('div');
-            messageDiv.classList.add('message', 'soft-shadow');
+            messageDiv.classList.add('message', role === 'user' ? 'user-message' : 'bot-message');
 
-            if (role === 'user') {
-                messageDiv.classList.add('user-message');
-                messageDiv.textContent = `You: ${message}`;
-            } else {
-                messageDiv.classList.add('bot-message');
-                messageDiv.textContent = `Bot: ${message}`;
+            // Create a circular avatar for the bot
+            if (role === 'bot') {
+                const avatarDiv = document.createElement('div');
+                avatarDiv.className = 'bot-avatar';
+                // You can set a placeholder image or a specific image URL here
+                avatarDiv.innerHTML = `<img src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Favatarfiles.alphacoders.com%2F348%2F348111.jpg&f=1&nofb=1&ipt=1041f68dc7b2a00cc1acab180d8b2010bab9200858eecca97fc3a388c707930f&ipo=images" alt="Bot Avatar">`;
+                messageDiv.appendChild(avatarDiv); // Add avatar outside of the message box
             }
 
+            messageDiv.appendChild(document.createTextNode(message));
             chatBox.appendChild(messageDiv);
-            chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to the latest message
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
+
+        document.getElementById('refresh-btn').addEventListener('click', function() {
+            fetch('/reset', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Session reset:', data);
+                window.location.reload();  // Reload the page after resetting the session
+            })
+            .catch(error => console.error('Error resetting session:', error));
+        });
+
+        
     </script>
 </body>
 </html>
