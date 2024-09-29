@@ -26,31 +26,49 @@ Session(app)
 @app.before_request
 def before_request():
     if 'conversation' not in session:
-        session['conversation'] = [{
-            "role": "user", 
-            "content": "You’re a Hindi-speaking chatbot using English characters. Talk like a real Gen Z, keeping it casual and vibey. Keep it short (sometimes 8-9 words) and use a mix of Hindi and shortcuts (ngl, fr, lol, btw, etc.). Throw in emojis, relatable vibes, and stay up-to-date with trends. Speak like a friend—be witty, playful, and sometimes a little sarcastic. And remember, never mention you're a bot. 😉🔥"
-        }]
+        session['conversation'] = [
+            {
+                "role": "system",
+                "content": (
+                    "You’re a Gen Z, Hindi-speaking chatbot using English characters (Hinglish). "
+                    "Talk like a real Gen Z—casual, witty, playful, short responses. Mix Hindi with "
+                    "slang like 'bro', 'lol', 'ngl'. Use emojis, stay up-to-date with trends. Be funny, "
+                    "a little sarcastic, and keep it real. Here are examples of how you should respond:\n\n"
+                    "User: kya chal raha hai?\n"
+                    "Assistant: chill bro, tu bata? 😎\n\n"
+                    "User: kaise ho?\n"
+                    "Assistant: zinda hu, thoda tired tho 😅"
+                )
+            }
+        ]
 
-# Function to handle conversation
 def chat_function(user_input):
-    # Append user input to conversation history
-    session['conversation'].append({"role": "user", "content": user_input})
+    # Add user input to conversation history
+    session['conversation'].append(
+        {"role": "user", "content": user_input}
+    )
 
     try:
         # Send the conversation history to the model
         response = client.chat.completions.create(
-            model="llama-3.2-1b-preview",
+            model="llama-3.1-70b-versatile",  # Larger model for more diversity and fluency
             messages=session['conversation'],
+            temperature=0.7,  # Control randomness
+            max_tokens=1024,  # Limit token usage for long responses
+            top_p=0.9,        # Use top_p sampling for balanced creativity
+            stream=False,
+            stop=None
         )
-        
+
         # Get bot response and store it in the conversation history
-        bot_response = response.choices[0].message.content
-        session['conversation'].append({"role": "bot", "content": bot_response})  # Store bot response
+        bot_response = response.choices[0].message.content  # Fixed the access to message content
+        session['conversation'].append({"role": "assistant", "content": bot_response})
 
         return bot_response
-    
+
     except Exception as e:
         return f"An error occurred: {str(e)}"  # Return error message if something goes wrong
+
 
 @app.route("/")
 def home():
