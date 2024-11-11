@@ -1,10 +1,9 @@
 from flask import Flask, render_template, request, session
 from flask_session import Session
-from g4f.client import Client
-from g4f.Provider import HuggingChat
-
+from groq import Groq
+import os
 # Initialize the GPT client
-client = Client(provider=HuggingChat)
+client = Groq(api_key=os.getenv("groq_api"))
 
 app = Flask(__name__)
 
@@ -58,7 +57,7 @@ def chat_function(user_input):
         try:
             # Send the conversation history to the model
             response = client.chat.completions.create(
-                model="gpt-4o",  # Ensure you have access to this model
+                model="llama-3.2-90b-vision-preview",  # Ensure you have access to this model
                 messages=session['conversation'],
             )
 
@@ -67,7 +66,8 @@ def chat_function(user_input):
 
             # Check if the bot response is not empty
             if bot_response:
-                session['conversation'].append({"role": "bot", "content": bot_response})  # Store bot response
+                # Use "assistant" instead of "bot" for the response role
+                session['conversation'].append({"role": "user", "content": bot_response})  
                 return bot_response
             else:
                 retries += 1

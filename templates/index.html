@@ -175,29 +175,53 @@
 
         document.getElementById('send-btn').addEventListener('click', sendMessage);
 
+        let retryCount = 0;
+        const maxRetries = 3;
+
         function sendMessage() {
             const userInput = document.getElementById('user-input').value.trim();
             if (userInput === '') return;
 
             appendMessage('user', userInput);
 
-            fetch('/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ message: userInput })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error(data.error);
-                } else {
-                    appendMessage('bot', data.response);
-                }
-            })
-            .catch(error => console.error('Error:', error));
+            const sendWithRetry = async () => {
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ message: userInput })
+                    });
 
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Network response was not ok');
+                    }
+
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    retryCount = 0;
+                    appendMessage('bot', data.response);
+
+                } catch (error) {
+                    console.error('Error:', error);
+
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        console.log(`Retrying... Attempt ${retryCount} of ${maxRetries}`);
+                        await sendWithRetry();
+                    } else {
+                        appendMessage('bot', "I'm having trouble responding to that. Can you please rephrase or try again later?");
+                        retryCount = 0;
+                    }
+                }
+            };
+
+            sendWithRetry();
             document.getElementById('user-input').value = '';
         }
 
@@ -235,7 +259,7 @@
             .catch(error => console.error('Error resetting session:', error));
         });
 
-        
+
     </script>
 </body>
 </html>
