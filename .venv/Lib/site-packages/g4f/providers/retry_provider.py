@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 import random
 
-from ..typing import Type, List, CreateResult, Messages, Iterator, AsyncResult
+from ..typing import Type, List, CreateResult, Messages, AsyncResult
 from .types import BaseProvider, BaseRetryProvider, ProviderType
+from .response import ImageResponse, ProviderInfo
 from .. import debug
 from ..errors import RetryProviderError, RetryNoProviderError
 
@@ -32,6 +32,8 @@ class IterListProvider(BaseRetryProvider):
         model: str,
         messages: Messages,
         stream: bool = False,
+        ignore_stream: bool = False,
+        ignored: list[str] = [],
         **kwargs,
     ) -> CreateResult:
         """
@@ -48,99 +50,79 @@ class IterListProvider(BaseRetryProvider):
         exceptions = {}
         started: bool = False
 
-        for provider in self.get_providers(stream):
+        for provider in self.get_providers(stream and not ignore_stream, ignored):
             self.last_provider = provider
+            debug.log(f"Using {provider.__name__} provider")
+            yield ProviderInfo(**provider.get_dict(), model=model if model else getattr(provider, "default_model"))
             try:
-                if debug.logging:
-                    print(f"Using {provider.__name__} provider")
-                for token in provider.create_completion(model, messages, stream, **kwargs):
-                    yield token
-                    started = True
+                response = provider.get_create_function()(model, messages, stream=stream, **kwargs)
+                for chunk in response:
+                    if chunk:
+                        yield chunk
+                        if isinstance(chunk, str) or isinstance(chunk, ImageResponse):
+                            started = True
                 if started:
                     return
             except Exception as e:
                 exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                debug.log(f"{provider.__name__}: {e.__class__.__name__}: {e}")
                 if started:
                     raise e
+                yield e
 
         raise_exceptions(exceptions)
-
-    async def create_async(
-        self,
-        model: str,
-        messages: Messages,
-        **kwargs,
-    ) -> str:
-        """
-        Asynchronously create a completion using available providers.
-        Args:
-            model (str): The model to be used for completion.
-            messages (Messages): The messages to be used for generating completion.
-        Returns:
-            str: The result of the asynchronous completion.
-        Raises:
-            Exception: Any exception encountered during the asynchronous completion process.
-        """
-        exceptions = {}
-
-        for provider in self.get_providers(False):
-            self.last_provider = provider
-            try:
-                if debug.logging:
-                    print(f"Using {provider.__name__} provider")
-                return await asyncio.wait_for(
-                    provider.create_async(model, messages, **kwargs),
-                    timeout=kwargs.get("timeout", 60),
-                )
-            except Exception as e:
-                exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
-
-        raise_exceptions(exceptions)
-
-    def get_providers(self, stream: bool) -> list[ProviderType]:
-        providers = [p for p in self.providers if p.supports_stream] if stream else self.providers
-        if self.shuffle:
-            random.shuffle(providers)
-        return providers
 
     async def create_async_generator(
         self,
         model: str,
         messages: Messages,
         stream: bool = True,
+        ignore_stream: bool = False,
+        ignored: list[str] = [],
         **kwargs
     ) -> AsyncResult:
         exceptions = {}
         started: bool = False
 
-        for provider in self.get_providers(stream):
+        for provider in self.get_providers(stream and not ignore_stream, ignored):
             self.last_provider = provider
+            debug.log(f"Using {provider.__name__} provider")
+            yield ProviderInfo(**provider.get_dict())
             try:
-                if debug.logging:
-                    print(f"Using {provider.__name__} provider")
-                if not stream:
-                    yield await provider.create_async(model, messages, **kwargs)
-                elif hasattr(provider, "create_async_generator"):
-                    async for token in provider.create_async_generator(model, messages, stream=stream, **kwargs):
-                        yield token
-                else:
-                    for token in provider.create_completion(model, messages, stream, **kwargs):
-                        yield token
+                response = provider.get_async_create_function()(model, messages, stream=stream, **kwargs)
+                if hasattr(response, "__aiter__"):
+                    async for chunk in response:
+                        if chunk:
+                            yield chunk
+                            if isinstance(chunk, str) or isinstance(chunk, ImageResponse):
+                                started = True
+                elif response:
+                    response = await response
+                    if response:
+                        yield response
                         started = True
                 if started:
                     return
             except Exception as e:
                 exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
+                debug.log(f"{provider.__name__}: {e.__class__.__name__}: {e}")
                 if started:
                     raise e
+                yield e
 
         raise_exceptions(exceptions)
+
+    def get_create_function(self) -> callable:
+        return self.create_completion
+
+    def get_async_create_function(self) -> callable:
+        return self.create_async_generator
+
+    def get_providers(self, stream: bool, ignored: list[str]) -> list[ProviderType]:
+        providers = [p for p in self.providers if (p.supports_stream or not stream) and p.__name__ not in ignored]
+        if self.shuffle:
+            random.shuffle(providers)
+        return providers
 
 class RetryProvider(IterListProvider):
     def __init__(
@@ -189,9 +171,11 @@ class RetryProvider(IterListProvider):
                 try:
                     if debug.logging:
                         print(f"Using {provider.__name__} provider (attempt {attempt + 1})")
-                    for token in provider.create_completion(model, messages, stream, **kwargs):
-                        yield token
-                        started = True
+                    response = provider.get_create_function()(model, messages, stream=stream, **kwargs)
+                    for chunk in response:
+                        if isinstance(chunk, str) or isinstance(chunk, ImageResponse):
+                            yield chunk
+                            started = True
                     if started:
                         return
                 except Exception as e:
@@ -204,114 +188,44 @@ class RetryProvider(IterListProvider):
         else:
             yield from super().create_completion(model, messages, stream, **kwargs)
 
-    async def create_async(
+    async def create_async_generator(
         self,
         model: str,
         messages: Messages,
-        **kwargs,
-    ) -> str:
-        """
-        Asynchronously create a completion using available providers.
-        Args:
-            model (str): The model to be used for completion.
-            messages (Messages): The messages to be used for generating completion.
-        Returns:
-            str: The result of the asynchronous completion.
-        Raises:
-            Exception: Any exception encountered during the asynchronous completion process.
-        """
+        stream: bool = True,
+        **kwargs
+    ) -> AsyncResult:
         exceptions = {}
+        started = False
 
         if self.single_provider_retry:
             provider = self.providers[0]
             self.last_provider = provider
             for attempt in range(self.max_retries):
                 try:
-                    if debug.logging:
-                        print(f"Using {provider.__name__} provider (attempt {attempt + 1})")
-                    return await asyncio.wait_for(
-                        provider.create_async(model, messages, **kwargs),
-                        timeout=kwargs.get("timeout", 60),
-                    )
+                    debug.log(f"Using {provider.__name__} provider (attempt {attempt + 1})")
+                    response = provider.get_async_create_function()(model, messages, stream=stream, **kwargs)
+                    if hasattr(response, "__aiter__"):
+                        async for chunk in response:
+                            if isinstance(chunk, str) or isinstance(chunk, ImageResponse):
+                                yield chunk
+                                started = True
+                    else:
+                        response = await response
+                        if response:
+                            yield response
+                            started = True
+                    if started:
+                        return
                 except Exception as e:
                     exceptions[provider.__name__] = e
                     if debug.logging:
                         print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
             raise_exceptions(exceptions)
         else:
-            return await super().create_async(model, messages, **kwargs)
-
-class IterProvider(BaseRetryProvider):
-    __name__ = "IterProvider"
-
-    def __init__(
-        self,
-        providers: List[BaseProvider],
-    ) -> None:
-        providers.reverse()
-        self.providers: List[BaseProvider] = providers
-        self.working: bool = True
-        self.last_provider: BaseProvider = None
-
-    def create_completion(
-        self,
-        model: str,
-        messages: Messages,
-        stream: bool = False,
-        **kwargs
-    ) -> CreateResult:
-        exceptions: dict = {}
-        started: bool = False
-        for provider in self.iter_providers():
-            if stream and not provider.supports_stream:
-                continue
-            try:
-                for token in provider.create_completion(model, messages, stream, **kwargs):
-                    yield token
-                    started = True
-                if started:
-                    return
-            except Exception as e:
-                exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
-                if started:
-                    raise e
-        raise_exceptions(exceptions)
-
-    async def create_async(
-        self,
-        model: str,
-        messages: Messages,
-        **kwargs
-    ) -> str:
-        exceptions: dict = {}
-        for provider in self.iter_providers():
-            try:
-                return await asyncio.wait_for(
-                    provider.create_async(model, messages, **kwargs),
-                    timeout=kwargs.get("timeout", 60)
-                )
-            except Exception as e:
-                exceptions[provider.__name__] = e
-                if debug.logging:
-                    print(f"{provider.__name__}: {e.__class__.__name__}: {e}")
-        raise_exceptions(exceptions)
-
-    def iter_providers(self) -> Iterator[BaseProvider]:
-        used_provider = []
-        try:
-            while self.providers:
-                provider = self.providers.pop()
-                used_provider.append(provider)
-                self.last_provider = provider
-                if debug.logging:
-                    print(f"Using {provider.__name__} provider")
-                yield provider
-        finally:
-            used_provider.reverse()
-            self.providers = [*used_provider, *self.providers]
-
+            async for chunk in super().create_async_generator(model, messages, stream, **kwargs):
+                yield chunk
+                
 def raise_exceptions(exceptions: dict) -> None:
     """
     Raise a combined exception if any occurred during retries.
@@ -322,7 +236,7 @@ def raise_exceptions(exceptions: dict) -> None:
     """
     if exceptions:
         raise RetryProviderError("RetryProvider failed:\n" + "\n".join([
-            f"{p}: {exception.__class__.__name__}: {exception}" for p, exception in exceptions.items()
+            f"{p}: {type(exception).__name__}: {exception}" for p, exception in exceptions.items()
         ]))
 
     raise RetryNoProviderError("No provider found")

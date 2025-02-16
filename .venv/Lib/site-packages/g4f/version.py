@@ -86,9 +86,9 @@ class VersionUtils:
         except CalledProcessError:
             pass
 
-        raise VersionNotFoundError("Version not found")
+        return None
 
-    @cached_property
+    @property
     def latest_version(self) -> str:
         """
         Retrieves the latest version of the 'g4f' package.

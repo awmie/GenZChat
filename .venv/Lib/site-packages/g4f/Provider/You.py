@@ -2,41 +2,41 @@ from __future__ import annotations
 
 import re
 import json
-import base64
 import uuid
 
 from ..typing import AsyncResult, Messages, ImageType, Cookies
 from .base_provider import AsyncGeneratorProvider, ProviderModelMixin
 from .helper import format_prompt
-from ..image import ImageResponse, ImagePreview, EXTENSIONS_MAP, to_bytes, is_accepted_format
-from ..requests import StreamSession, FormData, raise_for_status
-from .you.har_file import get_telemetry_ids
+from ..image import EXTENSIONS_MAP, to_bytes, is_accepted_format
+from ..requests import StreamSession, FormData, raise_for_status, get_nodriver
+from ..providers.response import ImagePreview, ImageResponse
+from ..cookies import get_cookies
+from ..errors import MissingRequirementsError, ResponseError
 from .. import debug
 
 class You(AsyncGeneratorProvider, ProviderModelMixin):
     label = "You.com"
     url = "https://you.com"
     working = True
-    supports_gpt_35_turbo = True
-    supports_gpt_4 = True
     default_model = "gpt-4o-mini"
     default_vision_model = "agent"
     image_models = ["dall-e"]
     models = [
         default_model,
         "gpt-4o",
+        "gpt-4o-mini",
         "gpt-4-turbo",
-        "gpt-4",
+        "grok-2",
         "claude-3.5-sonnet",
+        "claude-3.5-haiku",
         "claude-3-opus",
         "claude-3-sonnet",
         "claude-3-haiku",
-        "claude-2",
+        "llama-3.3-70b",
         "llama-3.1-70b",
         "llama-3",
         "gemini-1-5-flash",
         "gemini-1-5-pro",
-        "gemini-1-0-pro",
         "databricks-dbrx-instruct",
         "command-r",
         "command-r-plus",
@@ -59,6 +59,7 @@ class You(AsyncGeneratorProvider, ProviderModelMixin):
         proxy: str = None,
         timeout: int = 240,
         chat_mode: str = "default",
+        cookies: Cookies = None,
         **kwargs,
     ) -> AsyncResult:
         if image is not None or model == cls.default_vision_model:
@@ -71,12 +72,27 @@ class You(AsyncGeneratorProvider, ProviderModelMixin):
         else:
             chat_mode = "custom"
             model = cls.get_model(model)
+        if cookies is None and chat_mode != "default":
+            try:
+                cookies = get_cookies(".you.com")
+            except MissingRequirementsError:
+                pass
+            if not cookies or "afUserId" not in cookies:
+                browser, stop_browser = await get_nodriver(proxy=proxy)
+                try:
+                    page = await browser.get(cls.url)
+                    await page.wait_for('[data-testid="user-profile-button"]', timeout=900)
+                    cookies = {}
+                    for c in await page.send(nodriver.cdp.network.get_cookies([cls.url])):
+                        cookies[c.name] = c.value
+                    await page.close()
+                finally:
+                    stop_browser()
         async with StreamSession(
             proxy=proxy,
             impersonate="chrome",
             timeout=(30, timeout)
         ) as session:
-            cookies = await cls.get_cookies(session) if chat_mode != "default" else None
             upload = ""
             if image is not None:
                 upload_file = await cls.upload_file(
@@ -96,19 +112,14 @@ class You(AsyncGeneratorProvider, ProviderModelMixin):
                 "conversationTurnId": str(uuid.uuid4()),
                 "chatId": str(uuid.uuid4()),
             }
-            params = {
-                "userFiles": upload,
-                "selectedChatMode": chat_mode,
-            }
             if chat_mode == "custom":
                 if debug.logging:
                     print(f"You model: {model}")
-                params["selectedAiModel"] = model.replace("-", "_")
+                data["selectedAiModel"] = model.replace("-", "_")
 
-            async with (session.post if chat_mode == "default" else session.get)(
+            async with session.get(
                 f"{cls.url}/api/streamingSearch",
-                data=data if chat_mode == "default" else None,
-                params=params if chat_mode == "default" else data,
+                params=data,
                 headers=headers,
                 cookies=cookies
             ) as response:
@@ -117,9 +128,13 @@ class You(AsyncGeneratorProvider, ProviderModelMixin):
                     if line.startswith(b'event: '):
                         event = line[7:].decode()
                     elif line.startswith(b'data: '):
+                        if event == "error":
+                            raise ResponseError(line[6:])
                         if event in ["youChatUpdate", "youChatToken"]:
                             data = json.loads(line[6:])
                         if event == "youChatToken" and event in data and data[event]:
+                            if data[event].startswith("#### You\'ve hit your free quota for the Model Agent. For more usage of the Model Agent, learn more at:"):
+                                continue
                             yield data[event]
                         elif event == "youChatUpdate" and "t" in data and data["t"]:
                             if chat_mode == "create":
@@ -130,9 +145,9 @@ class You(AsyncGeneratorProvider, ProviderModelMixin):
                                     else:
                                         yield ImageResponse(match.group(2), match.group(1))
                                 else:
-                                    yield data["t"]          
+                                    yield data["t"]
                             else:
-                                yield data["t"]               
+                                yield data["t"]
 
     @classmethod
     async def upload_file(cls, client: StreamSession, cookies: Cookies, file: bytes, filename: str = None) -> dict:
@@ -159,64 +174,3 @@ class You(AsyncGeneratorProvider, ProviderModelMixin):
         result["user_filename"] = filename
         result["size"] = len(file)
         return result
-
-    @classmethod
-    async def get_cookies(cls, client: StreamSession) -> Cookies:
-        if not cls._cookies or cls._cookies_used >= 5:
-            cls._cookies = await cls.create_cookies(client)
-            cls._cookies_used = 0
-        cls._cookies_used += 1
-        return cls._cookies        
-
-    @classmethod
-    def get_sdk(cls) -> str:
-        return base64.standard_b64encode(json.dumps({
-            "event_id":f"event-id-{str(uuid.uuid4())}",
-            "app_session_id":f"app-session-id-{str(uuid.uuid4())}",
-            "persistent_id":f"persistent-id-{uuid.uuid4()}",
-            "client_sent_at":"","timezone":"",
-            "stytch_user_id":f"user-live-{uuid.uuid4()}",
-            "stytch_session_id":f"session-live-{uuid.uuid4()}",
-            "app":{"identifier":"you.com"},
-            "sdk":{"identifier":"Stytch.js Javascript SDK","version":"3.3.0"
-        }}).encode()).decode()
-
-    def get_auth() -> str:
-        auth_uuid = "507a52ad-7e69-496b-aee0-1c9863c7c819"
-        auth_token = f"public-token-live-{auth_uuid}:public-token-live-{auth_uuid}"
-        auth = base64.standard_b64encode(auth_token.encode()).decode()
-        return f"Basic {auth}"
-
-    @classmethod
-    async def create_cookies(cls, client: StreamSession) -> Cookies:
-        if not cls._telemetry_ids:
-            cls._telemetry_ids = await get_telemetry_ids()
-        user_uuid = str(uuid.uuid4())
-        telemetry_id = cls._telemetry_ids.pop()
-        if debug.logging:
-            print(f"Use telemetry_id: {telemetry_id}")
-        async with client.post(
-            "https://web.stytch.com/sdk/v1/passwords",
-            headers={
-                "Authorization": cls.get_auth(),
-                "X-SDK-Client": cls.get_sdk(),
-                "X-SDK-Parent-Host": cls.url,
-                "Origin": "https://you.com",
-                "Referer": "https://you.com/"
-            },
-            json={
-                "dfp_telemetry_id": telemetry_id,
-                "email": f"{user_uuid}@gmail.com",
-                "password": f"{user_uuid}#{user_uuid}",
-                "session_duration_minutes": 129600
-            }
-        ) as response:
-            await raise_for_status(response)
-            session = (await response.json())["data"]
-
-        return {
-            "stytch_session": session["session_token"],
-            'stytch_session_jwt': session["session_jwt"],
-            'ydc_stytch_session': session["session_token"],
-            'ydc_stytch_session_jwt': session["session_jwt"],
-        }

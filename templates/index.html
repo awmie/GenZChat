@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YaNiChi</title>
-    <link rel="icon" href="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Favatarfiles.alphacoders.com%2F348%2F348111.jpg&f=1&nofb=1&ipt=1041f68dc7b2a00cc1acab180d8b2010bab9200858eecca97fc3a388c707930f&ipo=images" type="image/x-icon">
+    <link rel="icon" href="static/images/nami.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         body {
@@ -143,6 +143,50 @@
         .footer-icons i {
             margin-right: 10px;
         }
+
+        /* New styles for smooth typing indicator */
+        .typing-indicator {
+            display: inline-block;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #ccc;
+            border-radius: 50%;
+            margin: 0 2px;
+            opacity: 0.3;
+            animation: blink 1.4s infinite;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes blink {
+            0% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+            100% { opacity: 0.3; transform: scale(1); }
+        }
+
+        /* New styles for popup message */
+        #popup {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: #fff;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +211,12 @@
         </button>                    
     </div>
 
+    <!-- Loader for animation while answering -->
+    <div id="loader" style="display:none;">. . .</div>
+
+    <!-- New popup element -->
+    <div id="popup"></div>
+
     <script>
         document.getElementById('user-input').addEventListener('keydown', function(event) {
             if (event.key === 'Enter') {
@@ -180,50 +230,51 @@
         const maxRetries = 3;
 
         function sendMessage() {
-            const userInput = document.getElementById('user-input').value.trim();
+            const userInputElem = document.getElementById('user-input');
+            const userInput = userInputElem.value.trim();
             if (userInput === '') return;
 
             appendMessage('user', userInput);
+            userInputElem.value = "";
+
+            // Append a smooth typing indicator (without bubble) for the bot
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+            document.getElementById('chat-box').appendChild(typingIndicator);
+            document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
 
             const sendWithRetry = async () => {
                 try {
                     const response = await fetch('/chat', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ message: userInput })
                     });
-
                     const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Network response was not ok');
+                    if (!response.ok || data.error) {
+                        throw new Error(data.error || 'Network error');
                     }
-
-                    if (data.error) {
-                        throw new Error(data.error);
-                    }
-
                     retryCount = 0;
+                    // Remove typing indicator and add bot message bubble
+                    typingIndicator.remove();
                     appendMessage('bot', data.response);
-
                 } catch (error) {
                     console.error('Error:', error);
-
                     if (retryCount < maxRetries) {
                         retryCount++;
                         console.log(`Retrying... Attempt ${retryCount} of ${maxRetries}`);
                         await sendWithRetry();
+                        return;
                     } else {
-                        appendMessage('bot', "I'm having trouble responding to that. Can you please rephrase or try again later?");
+                        typingIndicator.remove();
+                        appendMessage('bot', "I'm having trouble responding. Please try again later.");
                         retryCount = 0;
                     }
                 }
             };
 
             sendWithRetry();
-            document.getElementById('user-input').value = '';
         }
 
         function appendMessage(role, message) {
@@ -236,7 +287,7 @@
                 const avatarDiv = document.createElement('div');
                 avatarDiv.className = 'bot-avatar';
                 // You can set a placeholder image or a specific image URL here
-                avatarDiv.innerHTML = `<img src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Favatarfiles.alphacoders.com%2F348%2F348111.jpg&f=1&nofb=1&ipt=1041f68dc7b2a00cc1acab180d8b2010bab9200858eecca97fc3a388c707930f&ipo=images" alt="Bot Avatar">`;
+                avatarDiv.innerHTML = `<img src="/static/images/nami.png" alt="Bot Avatar">`;
                 messageDiv.appendChild(avatarDiv); // Add avatar outside of the message box
             }
 
@@ -245,22 +296,55 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
+        function showPopup(message) {
+            const popup = document.getElementById('popup');
+            popup.textContent = message;
+            popup.style.opacity = '1';
+            setTimeout(() => {
+                popup.style.opacity = '0';
+            }, 3000);
+        }
+
         document.getElementById('refresh-btn').addEventListener('click', function() {
             fetch('/reset', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
+                headers: { 'Content-Type': 'application/json' }
             })
             .then(response => response.json())
             .then(data => {
                 console.log('Session reset:', data);
-                window.location.reload();  // Reload the page after resetting the session
+                showPopup('Chat history has been cleared.');
             })
             .catch(error => console.error('Error resetting session:', error));
         });
 
-
+        document.getElementById("chat-form").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            const messageInput = document.getElementById("message-input");
+            const loader = document.getElementById("loader");
+            const chatbox = document.getElementById("chatbox");
+            const userMessage = messageInput.value;
+            
+            // Display user message and show animation
+            chatbox.innerHTML += "<div>User: " + userMessage + "</div>";
+            messageInput.value = "";
+            loader.style.display = "block";
+            
+            try {
+              const response = await fetch("/chat", { 
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({message: userMessage})
+              });
+              const data = await response.json();
+              chatbox.innerHTML += "<div>Bot: " + data.response + "</div>";
+            } catch (error) {
+              chatbox.innerHTML += "<div>Error: " + error + "</div>";
+            }
+            
+            // Hide animation after response
+            loader.style.display = "none";
+          });
     </script>
 </body>
 </html>
