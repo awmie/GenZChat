@@ -42,7 +42,7 @@ def chat_function(user_input):
 
     try:
         response = client.chat.completions.create(
-            model="llama-3.1-405b",
+            model="evil",
             messages=session['conversation'],
             web_search=True
         )
