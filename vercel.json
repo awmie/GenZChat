@@ -15,5 +15,15 @@
     "api/**": {
       "excludeFiles": "{.next,*.cache,node_modules,public,app}/**"
     }
+  },
+  "crons": {
+    "cleanTempFiles": {
+      "schedule": "0 0 * * *",
+      "command": "rm -rf /tmp/flask_session"
+    }
+  },
+  "env": {
+    "NLTK_DATA": "/tmp/nltk_data",
+    "SPACY_MODEL_PATH": "/tmp/spacy_models"
   }
 }

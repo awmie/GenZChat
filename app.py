@@ -9,10 +9,11 @@ import spacy
 import datetime
 from collections import Counter
 
-# Try to load spaCy model for better entity extraction
+# Try to load spaCy model for better entity extraction - make this optional
 try:
     nlp = spacy.load("en_core_web_sm")
 except:
+    print("spaCy language model not available, falling back to basic NLP")
     nlp = None
 
 app = Flask(__name__)
