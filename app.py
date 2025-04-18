@@ -1,29 +1,22 @@
-from flask import Flask, render_template, request, session
-from flask_session import Session
+from flask import Flask, render_template, request, jsonify
 from g4f.client import Client
+import os
+import json
+import traceback
 from utils.markdown_helper import render_markdown
 
 app = Flask(__name__)
 
-# Configure server-side session - using filesystem for simplicity
-app.config["SESSION_PERMANENT"] = False
-app.config["SESSION_TYPE"] = "filesystem"
-Session(app)
+# Simple in-memory chat history (since filesystem sessions don't work well in serverless)
+chat_history = {}
 
 client = Client()
 
-# Initialize conversation in the session
-@app.before_request
-def before_request():
-    if 'conversation' not in session:
-        session['conversation'] = [{
-            "role": "system", 
-            "content": "You're Nami from One Piece—playful, sassy, and Gen Z. Keep replies short, witty (5–10 words), and fun. Use emojis sometimes 🎯"
-        }]
-
 @app.route("/reset", methods=["POST"])
 def reset_session():
-    session.clear()
+    request_id = request.headers.get('X-Request-ID', 'default')
+    if request_id in chat_history:
+        del chat_history[request_id]
     return {"status": "session reset"}
 
 @app.route("/")
@@ -32,39 +25,51 @@ def home():
 
 @app.route("/chat", methods=["POST"])
 def chat():
-    user_input = request.json.get("message")
-    
-    # Add user message to history
-    session['conversation'].append({"role": "user", "content": user_input})
-    
-    # Keep conversation history short to save memory
-    if len(session['conversation']) > 10:
-        session['conversation'] = [session['conversation'][0]] + session['conversation'][-9:]
-    
-    session.modified = True
-    
     try:
+        user_input = request.json.get("message")
+        request_id = request.headers.get('X-Request-ID', 'default')
+        
+        # Initialize conversation history if needed
+        if request_id not in chat_history:
+            chat_history[request_id] = [{
+                "role": "system", 
+                "content": "You're Nami from One Piece—playful, sassy, and Gen Z. Keep replies short, witty (5–10 words), and fun. Use emojis sometimes 🎯"
+            }]
+        
+        # Add user message to history
+        chat_history[request_id].append({"role": "user", "content": user_input})
+        
+        # Keep conversation history short to save memory
+        if len(chat_history[request_id]) > 10:
+            chat_history[request_id] = [chat_history[request_id][0]] + chat_history[request_id][-9:]
+        
         # Get response from API
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=session['conversation']
+            messages=chat_history[request_id]
         )
         
         bot_response = response.choices[0].message.content.strip()
         
         # Add bot response to history
-        session['conversation'].append({"role": "assistant", "content": bot_response})
-        session.modified = True
+        chat_history[request_id].append({"role": "assistant", "content": bot_response})
         
         return {"response": render_markdown(bot_response)}
     except Exception as e:
-        return {"response": f"Error: {str(e)}"}
+        error_detail = traceback.format_exc()
+        print(f"Error in chat endpoint: {str(e)}\n{error_detail}")
+        return {"response": f"Sorry, I encountered an error. Please try again later."}, 500
 
 @app.route("/get_chat_history", methods=["GET"])
 def get_chat_history():
-    if 'conversation' in session and len(session['conversation']) > 1:
-        return {"history": session['conversation'][1:]}
+    request_id = request.headers.get('X-Request-ID', 'default')
+    if request_id in chat_history and len(chat_history[request_id]) > 1:
+        return {"history": chat_history[request_id][1:]}
     return {"history": []}
 
+# Vercel requires a serverless function handler
+def handler(event, context):
+    return app(event, context)
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5001)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5001)))
