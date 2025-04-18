@@ -70,5 +70,14 @@ def chat():
 
     return {"response": bot_response}
 
+@app.route("/get_chat_history", methods=["GET"])
+def get_chat_history():
+    # Skip the first system message (Nami's personality instructions)
+    if 'conversation' in session and len(session['conversation']) > 1:
+        # Return only user and assistant messages, not the system prompt
+        history = session['conversation'][1:]
+        return {"history": history}
+    return {"history": []}
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001, debug=True)

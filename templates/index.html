@@ -429,6 +429,11 @@
     <div id="popup"></div>
 
     <script>
+        // Load chat history when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadChatHistory();
+        });
+
         document.getElementById('user-input').addEventListener('keydown', function(event) {
             if (event.key === 'Enter') {
                 sendMessage();
@@ -439,6 +444,26 @@
 
         let retryCount = 0;
         const maxRetries = 3;
+
+        function loadChatHistory() {
+            fetch('/get_chat_history')
+                .then(response => response.json())
+                .then(data => {
+                    const history = data.history;
+                    if (history && history.length > 0) {
+                        history.forEach(message => {
+                            if (message.role === 'user' || message.role === 'assistant') {
+                                appendMessage(message.role === 'user' ? 'user' : 'bot', message.content);
+                            }
+                        });
+                        // Scroll to bottom after loading history
+                        document.getElementById('chat-box').scrollTop = document.getElementById('chat-box').scrollHeight;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading chat history:', error);
+                });
+        }
 
         function sendMessage() {
             const userInputElem = document.getElementById('user-input');
