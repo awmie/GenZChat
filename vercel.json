@@ -1,5 +1,4 @@
 {
-  "framework": "flask",
   "routes": [
     {
       "src": "/(.*)",
