@@ -1,0 +1,6 @@
+.venv
+flask_session
+.env
+.vercel
+har_and_cookies
+__pycache__
