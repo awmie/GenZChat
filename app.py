@@ -99,7 +99,7 @@ def chat_function(user_input):
             messages_to_send.insert(1, name_reminder)
             
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # Specify a default model
+            model="",  # Specify a default model
             messages=messages_to_send,
             web_search=False  # Only use web search when needed
         )
