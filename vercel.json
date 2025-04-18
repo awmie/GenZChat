@@ -1,14 +1,9 @@
 {
-  "builds": [
-    {
-      "src": "app.py",
-      "use": "@vercel/python"
-    }
-  ],
+  "framework": "flask",
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "app.py"
+      "dest": "/app.py"
     }
   ]
 }
