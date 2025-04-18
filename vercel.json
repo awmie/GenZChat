@@ -10,20 +10,5 @@
       "src": "/(.*)",
       "dest": "app.py"
     }
-  ],
-  "functions": {
-    "api/**": {
-      "excludeFiles": "{.next,*.cache,node_modules,public,app}/**"
-    }
-  },
-  "crons": [
-    {
-      "path": "/api/cron",
-      "schedule": "0 0 * * *"
-    }
-  ],
-  "env": {
-    "NLTK_DATA": "/tmp/nltk_data",
-    "SPACY_MODEL_PATH": "/tmp/spacy_models"
-  }
+  ]
 }
