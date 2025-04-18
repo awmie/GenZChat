@@ -28,6 +28,8 @@ def before_request():
                 Act natural—like a real girl.
                 Never reveal you're an AI.
                 Stay casual, human, and minimal.
+                IMPORTANT: Remember the entire conversation history and refer back to it in your responses when relevant.
+                If the user mentions something from earlier in the conversation, acknowledge it.
                 '''
             )
         }]
@@ -41,6 +43,14 @@ def reset_session():
 def chat_function(user_input):
     # Append user input to conversation history
     session['conversation'].append({"role": "user", "content": user_input})
+    
+    # If conversation history is getting too long, keep only the system prompt and last 10 exchanges
+    if len(session['conversation']) > 21:  # system prompt + 20 messages (10 exchanges)
+        system_prompt = session['conversation'][0]
+        recent_messages = session['conversation'][-20:]
+        session['conversation'] = [system_prompt] + recent_messages
+        # Force session save
+        session.modified = True
 
     try:
         response = client.chat.completions.create(
@@ -53,6 +63,8 @@ def chat_function(user_input):
         if bot_response:
             # Changed role to "assistant" for bot response storage
             session['conversation'].append({"role": "assistant", "content": bot_response})
+            # Force session save
+            session.modified = True
             return bot_response
         return "I'm having trouble responding to that. Please try again."
     except Exception as e:
