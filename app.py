@@ -57,7 +57,7 @@ def chat_function(user_input):
     try:
         # Send the conversation to the API
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="",
             messages=session['conversation'],
             web_search=False
         )
