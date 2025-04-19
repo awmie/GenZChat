@@ -26,6 +26,7 @@
             --border-radius: 16px;
             --border-radius-sm: 12px;
             --border-radius-lg: 24px;
+            --border-radius-pill: 9999px;
             --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
@@ -147,7 +148,7 @@
             flex-grow: 1;
             padding: 0.875rem 1.25rem;
             border: none;
-            border-radius: var(--border-radius);
+            border-radius: var(--border-radius-pill);
             outline: none;
             font-size: 0.95rem;
             font-family: inherit;
@@ -311,6 +312,43 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
         }
 
+        /* Loading overlay for chat history */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        
+        .loading-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-color-solid);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Markdown formatting styles */
         .bot-message a {
             color: #93c5fd;
@@ -428,8 +466,23 @@
 
     <!-- New popup element -->
     <div id="popup"></div>
+    
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show loading indicator while checking for saved chat history
+            showLoading();
+            
+            // Will be removed automatically when chat history is loaded via the session
+            setTimeout(() => {
+                hideLoading();
+            }, 1500);
+        });
+    
         document.getElementById('user-input').addEventListener('keydown', function(event) {
             if (event.key === 'Enter') {
                 sendMessage();
@@ -440,6 +493,15 @@
 
         let retryCount = 0;
         const maxRetries = 3;
+
+        // Show/hide loading overlay
+        function showLoading() {
+            document.getElementById('loading-overlay').classList.add('visible');
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.remove('visible');
+        }
 
         function sendMessage() {
             const userInputElem = document.getElementById('user-input');
@@ -523,6 +585,9 @@
         }
 
         document.getElementById('refresh-btn').addEventListener('click', function() {
+            // Show loading indicator when clearing chat
+            showLoading();
+            
             fetch('/reset', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
@@ -530,13 +595,19 @@
             .then(response => response.json())
             .then(data => {
                 console.log('Session reset:', data);
-                showPopup('Chat history has been cleared');
                 
                 // Clear visible messages
                 document.getElementById('chat-box').innerHTML = '';
+                
+                // Hide loading and show popup
+                setTimeout(() => {
+                    hideLoading();
+                    showPopup('Chat history has been cleared');
+                }, 800);
             })
             .catch(error => {
                 console.error('Error resetting session:', error);
+                hideLoading();
                 showPopup('Failed to clear chat history');
             });
         });
