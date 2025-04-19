@@ -15,7 +15,7 @@ app = Flask(__name__)
 
 # MongoDB Configuration
 uri = os.environ.get('MONGODB_URI')
-mongo_client = MongoClient(uri, server_api=ServerApi('1'))
+mongo_client = MongoClient(uri, server_api=ServerApi('1'), ssl=True, ssl_cert_reqs='CERT_NONE')
 db = mongo_client.get_database("genchat_sessions")
 conversation_collection = db.get_collection("conversations")
 
