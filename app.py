@@ -28,7 +28,7 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "mongodb"
 app.config["SESSION_MONGODB"] = mongo_client
 app.config["SESSION_MONGODB_DB"] = "genchat_sessions"
-app.config["SESSION_MONGODB_COLLECT"] = "sessions"
+app.config["SESSION_MONGODB_COLLECTION"] = "sessions"
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')  # Important for session security
 Session(app)
 
